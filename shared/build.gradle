@@ -1,0 +1,77 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        google()
+        jcenter()
+        mavenCentral()
+        maven { url "https://kotlin.bintray.com/kotlinx" }
+    }
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+}
+
+
+kotlin {
+
+
+    js {
+        browser {
+            testTask {
+                testLogging {
+                    showExceptions = true
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showCauses = true
+                    showStackTraces = true
+                }
+            }
+        }
+        nodejs {
+            testTask {
+                testLogging {
+                    showExceptions = true
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showCauses = true
+                    showStackTraces = true
+                }
+            }
+        }
+    }
+
+    jvm()
+
+
+    sourceSets {
+        commonMain {
+            dependencies {
+                implementation 'org.jetbrains.kotlin:kotlin-stdlib-common'
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.0-RC"
+            }
+
+        }
+
+
+        jvmMain {
+            resources.srcDirs += "resources"
+            dependencies {
+
+
+            }
+        }
+
+
+        jsMain {
+            dependencies {
+
+            }
+        }
+    }
+}
+
+// workaround for https://youtrack.jetbrains.com/issue/KT-27170
+configurations {
+    compileClasspath
+}
+

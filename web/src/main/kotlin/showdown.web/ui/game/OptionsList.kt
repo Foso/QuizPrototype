@@ -57,31 +57,6 @@ fun RBuilder.optionsList(
         }
     }
 
-    options.forEachIndexed { index, option ->
 
-        p{
-            button {
-                attrs {
-                    this.size = ButtonSize.large
-                    this.color = if (index != selectedOptionIndex) {
-                        ButtonColor.primary
-                    } else {
-                        ButtonColor.secondary
-                    }
-                    variant = ButtonVariant.outlined
-                    onClickFunction = {
-                        onOptionClicked(index)
-                    }
-
-                }
-                +option
-
-            }
-        }
-
-
-
-
-    }
 
 }

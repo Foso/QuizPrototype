@@ -40,14 +40,23 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     private val spectatorIds = mutableSetOf<String>()
     private val moshi = Moshi.Builder().build()
     private var activePlayerId: String = ""
+
+    val pointsMap: MutableMap<String, Int> = mutableMapOf()
+
+    var taskIndex = 0
     val tasks: List<QuestionTask> =
         listOf(
             QuestionTask(
                 "Wie gehts dir?",
-                answers = listOf(Answer("Gut",true),Answer("Schlecht",false),Answer("Geht so",false))
+                answers = listOf(Answer("Gut", true), Answer("Schlecht", false), Answer("Geht so", false))
+            ),
+            QuestionTask(
+                "Wie spät ist es?",
+                answers = listOf(Answer("15Uhr", false), Answer("16Uhr", false), Answer("17uhr", true))
             )
         )
 
+    var activeTask: QuestionTask? = null
 
     fun changeRoomPassword(sessionId: String, password: String) {
         val newRoomData = gameConfig.room.copy(password = password)
@@ -83,6 +92,7 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     }
 
     fun restart() {
+        println("restart")
         gameState =
             GameState.Started(gameConfig.toClient().copy(createdAt = DateTime.now().unixMillisDouble.toString()))
         inactivePlayerIds.forEach { inactivePlayerId ->
@@ -94,6 +104,11 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
         clearVotes()
         sendPlayerList()
         sendGameStateChanged(gameState)
+    }
+
+    fun chooseNewTask() {
+        taskIndex += 1
+        activeTask = tasks[taskIndex]
     }
 
     private fun clearVotes() {
@@ -110,10 +125,16 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
             }
             playerList.add(player)
             server.onPlayerAdded(player.sessionId, player)
-
+            pointsMap.putIfAbsent(player.sessionId, 0)
             sendPlayerList()
             sendGameStateChanged(player.sessionId, gameState)
         }
+        sendTask()
+    }
+
+    fun sendTask() {
+        sendGameStateChanged(GameState.TaskUpdate(tasks[taskIndex]))
+
     }
 
     private fun onPlayerRejoined(sessionId: String, name: String) {
@@ -134,6 +155,8 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     fun newRound() {
         activePlayerId = ""
 
+        chooseNewTask()
+        sendTask()
     }
 
     fun changeConfig(clientGameConfig: NewGameConfig) {
@@ -232,9 +255,9 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     }
 
     fun onBuzzerPressed(sessionId: String) {
+        println("onBuzzer")
         if (activePlayerId.isEmpty()) {
             activePlayerId = sessionId
-            sendGameStateChanged(GameState.TaskUpdate(tasks[0]))
         }
     }
 
@@ -243,13 +266,36 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
             return
         }
 
+        pointsMap[sessionId] = (pointsMap[sessionId] ?: 0) + if (checkAnswer(sessionId, answer)) {
+            1000
+        } else {
+            -1000
+        }
+        sendCharts()
+        newRound()
         println("HALLO" + answer)
     }
 
-    fun checkAnswer(sessionId: String, answer: String) {
-       // val answers = tasks[0].correctAnswer + tasks[0].incorrectAnswers
+    fun checkAnswer(sessionId: String, answer: String): Boolean {
+        // val answers = tasks[0].correctAnswer + tasks[0].incorrectAnswers
         val index = answer.toInt()
+        return true
+    }
 
+    private fun sendCharts() {
+        val votesList = playerList.map { player ->
+            val isActive = inactivePlayerIds.none { it == player.sessionId }
+            val isSpectator = spectatorIds.any { it == player.sessionId }
+            val voted = player.vote != null
+            Member(
+                player.name,
+                voted,
+                isConnected = isActive,
+                isSpectator = isSpectator,
+                points = pointsMap.getOrDefault(player.sessionId, 0)
+            )
+        }.sortedBy { it.voted }
+        sendGameStateChanged(GameState.PlayerListUpdate(votesList))
     }
 
     private fun sendVotes() {
@@ -272,6 +318,7 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     }
 
     private fun sendGameStateChanged(gameState: GameState) {
+        println("sendGameStateChanged " + ServerResponse.GameStateChanged(gameState).toJson())
         sendBroadcast(ServerResponse.GameStateChanged(gameState).toJson())
     }
 

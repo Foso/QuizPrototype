@@ -155,6 +155,7 @@ class ServerGame(private val server: GameServer, var gameConfig: ServerConfig) {
     fun newRound() {
         activePlayerId = ""
 
+
         chooseNewTask()
         sendTask()
     }

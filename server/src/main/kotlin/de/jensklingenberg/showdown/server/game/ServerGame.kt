@@ -27,6 +27,7 @@ enum class Category {
 }
 
 
+
 /**
  * This class contains the state/logic of a game
  * [server] that will handle a responses to the clients
